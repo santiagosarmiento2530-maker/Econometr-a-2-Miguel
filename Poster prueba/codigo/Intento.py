@@ -657,3 +657,83 @@ plt.legend(loc="upper left")
 plt.grid(True)
 plt.tight_layout()
 plt.show()
+
+# %% Evaluación Fuera de Muestra (Backtesting - Recorte de 12 Períodos) =========================
+
+# 1. Separar la serie en datos de entrenamiento (Train) y evaluación (Test)
+n_test = 12
+train_serie = serie_tiempo.iloc[:-n_test]
+test_serie = serie_tiempo.iloc[-n_test:]
+
+# Ajustar las variables exógenas (dummy d1) para train y test
+train_exog = d1.iloc[:-n_test]
+test_exog = d1.iloc[-n_test:]
+
+# 2. Reestimar el modelo con los datos de entrenamiento
+modelo_backtest = SARIMAX(
+    train_serie,
+    exog=train_exog,
+    order=(0, 1, 1),
+    seasonal_order=(0, 0, 1, 12),
+    trend="n",
+    enforce_stationarity=False,
+    enforce_invertibility=False
+).fit(disp=False)
+
+# 3. Generar el pronóstico sobre los 12 períodos recortados
+forecast_backtest = modelo_backtest.get_forecast(steps=n_test, exog=test_exog)
+pred_media = forecast_backtest.predicted_mean
+pred_ic = forecast_backtest.conf_int(alpha=0.05)
+
+# 4. Tabla comparativa entre el valor observado vs pronosticado
+df_comparacion = pd.DataFrame({
+    'Valor Real': test_serie,
+    'Pronóstico': pred_media,
+    'Error Absoluto': np.abs(test_serie - pred_media),
+    'Error Porcentual (%)': np.abs((test_serie - pred_media) / test_serie) * 100,
+    'Límite Inferior (95%)': pred_ic.iloc[:, 0],
+    'Límite Superior (95%)': pred_ic.iloc[:, 1]
+})
+
+print("=== Comparación: Pronóstico vs Valor Real (Últimos 12 períodos) ===")
+print(df_comparacion)
+
+# 5. Métricas de precisión del pronóstico
+rmse = np.sqrt(np.mean((test_serie - pred_media)**2))
+mae = np.mean(np.abs(test_serie - pred_media))
+mape = np.mean(np.abs((test_serie - pred_media) / test_serie)) * 100
+
+print("\n=== Métricas de Error del Pronóstico ===")
+print(f"RMSE (Raíz del Error Cuadrático Medio): {rmse:.4f}")
+print(f"MAE  (Error Absoluto Medio):           {mae:.4f}")
+print(f"MAPE (Error Porcentual Absoluto Medio): {mape:.2f}%")
+
+# 6. Gráfica de comparación
+plt.figure(figsize=(12, 6))
+
+# Mostrar los últimos 24 períodos de train para dar contexto visual
+plt.plot(train_serie.iloc[-24:], label="Histórico (Entrenamiento)", color="blue", linewidth=1.5)
+
+# Graficar los valores reales del periodo de prueba
+plt.plot(test_serie.index, test_serie, label="Valor Real (Observado)", color="black", marker="o", linewidth=2)
+
+# Graficar el pronóstico
+plt.plot(pred_media.index, pred_media, label="Pronóstico SARIMAX", color="red", linestyle="--", marker="s", linewidth=2)
+
+# Sombreado del intervalo de confianza
+plt.fill_between(
+    pred_ic.index,
+    pred_ic.iloc[:, 0],
+    pred_ic.iloc[:, 1],
+    color="red",
+    alpha=0.2,
+    label="Intervalo de Confianza (95%)"
+)
+
+plt.title("Evaluación Fuera de Muestra: Pronóstico SARIMAX vs Datos Reales")
+plt.xlabel("Fecha")
+plt.ylabel("%")
+plt.legend(loc="upper left")
+plt.grid(True)
+plt.tight_layout()
+plt.show()
