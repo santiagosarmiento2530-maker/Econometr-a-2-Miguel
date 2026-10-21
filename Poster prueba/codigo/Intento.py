@@ -6,7 +6,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
-#import ruptures as rpt (Solo util para detección de quiebres estructurales, a veces no viene instalada en anaconda)
+#import ruptures as rpt
+#(Solo util para detección de quiebres estructurales, a veces no viene instalada en anaconda)
 from scipy.stats import jarque_bera, probplot
 
 # Módulos de statsmodels
@@ -25,7 +26,8 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = BASE_DIR / "Poster prueba" / "datos"
 
 # Rutas de las bases de datos 
-ruta_exp = DATA_DIR / "base_1.xlsx" # Base de datos de exportaciones
+ruta_exp = DATA_DIR / "base_1.xlsx" # Base de datos 
+
 # %% limpiar la base de datos, pues los datos originales se descargaron de forma conjunta =========================
 
 # Base de datos xlsx
@@ -70,7 +72,7 @@ print(serie_tiempo.head())
 # %%==========================
 # Paso 1: Identificación
 # ============================
-# Gráfica de la serie de tiempo "exportaciones tradicionales"
+# Gráfica de la serie de tiempo 
 plt.figure(figsize=(10, 5))
 plt.plot(serie_tiempo)
 plt.title("Tasa global de participación(26-45), 2007-2020")
@@ -190,17 +192,17 @@ plt.show()
 # Definir la lista de modelos a evaluar (p, d, q) x (P, D, Q, s)
 # Se basan en los picos de los rezagos 1, 3 y 12
 candidatos = [
-    ((1, 1, 1), (0, 0, 1, 12)),
-    ((0, 1, 3), (0, 0, 1, 12)),
-    ((0, 1, 1), (0, 0, 1, 12)),
-    ((1, 1, 1), (1, 0, 1, 12)), # Con componente estacional mensual
-    ((0, 1, 1), (0, 1, 1, 12)),# El unico que minimiza criterios de información, hubo convergencia en el metodo de estimación (estimadores coherentes y significativos)
-    ((1, 1, 1), (1, 1, 1, 12)),
-    ((0, 1, 3), (0, 1, 1, 12)),
-    ((1, 1, 3), (1, 1, 1, 12)),  #El que minimiza criterios de información, hubo no convergencia en el metodo de estimación
-    ((0, 1, 3), (0, 1, 3, 12)), #El que minimiza criterios de información, hubo no convergencia en el metodo de estimación
-    ((0, 1, 3), (0, 1, 2, 12)),#El segundo que minimiza criterios de información, hubo no convergencia en el metodo de estimación
-    ((1, 1, 1), (1, 1, 1, 3)),  
+    ((1, 1, 1), (0, 0, 1, 12)),#sobreidentificación
+    ((0, 1, 3), (0, 0, 1, 12)),#sobreidentificación
+    ((0, 1, 1), (0, 0, 1, 12)), # Es de los mejores pero no todos sus estimadores son significativos, se descarta por parsimonia 
+    ((1, 1, 1), (1, 0, 1, 12)),#sobreidentificación
+    ((0, 1, 1), (0, 1, 1, 12)),#sobrediferenciación
+    ((1, 1, 1), (1, 1, 1, 12)),#sobreidentificación y sobrediferenciación
+    ((0, 1, 0), (0, 0, 1, 12)),# El unico que minimiza criterios de información, hubo convergencia en el metodo de estimación (estimadores coherentes y significativos)
+    ((1, 1, 3), (1, 1, 1, 12)),#sobreidentificación
+    ((0, 1, 3), (0, 1, 3, 12)),#sobreidentificación
+    ((0, 1, 3), (0, 1, 2, 12)),#sobreidentificación
+    ((1, 1, 1), (1, 1, 1, 3)), #Correlación en los residuales
     ((0, 1, 1), (0, 1, 1, 3)),
     ((1, 1, 1), (1, 0, 1, 3)),
     ((1, 1, 1), (1, 0, 1, 1)),
@@ -236,7 +238,7 @@ print(df_res)
 # Seleccionar el modelo con menor AIC y BIC
 modelo_ma1 = SARIMAX(
     serie_tiempo,
-    order=(0, 1, 1),
+    order=(0, 1, 0),
     seasonal_order=(0, 0, 1, 12),
     trend="n",
     enforce_stationarity=False,
@@ -317,7 +319,7 @@ exog_X = pd.concat(dummies_list, axis=1)
 modelo_dummies = sm.tsa.statespace.SARIMAX(
     serie_tiempo,
     exog=d1,
-    order=(0, 1, 1),
+    order=(0, 1, 0),
     seasonal_order=(0, 0, 1, 12),
     trend="n",
     enforce_stationarity=False,
@@ -420,7 +422,7 @@ plt.show()
 ljung_box = acorr_ljungbox(
     residuales1,
     lags=[6, 12, 18, 24],
-    model_df=2,  # Ajuste por el número de parámetros del modelo
+    model_df=1,  # Ajuste por el número de parámetros del modelo Sma
     return_df=True
 )
 
@@ -430,7 +432,7 @@ print(ljung_box)
 ljung_box2 = acorr_ljungbox(
     residuales2,
     lags=[6, 12, 18, 24],
-    model_df=3,  # Ajuste por el número de parámetros del modelo
+    model_df=2,  # Ajuste por el número de parámetros del modelo Sma + d1
     return_df=True
 )
 
